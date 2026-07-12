@@ -2,11 +2,14 @@ from data_loader import load_portfolio_data
 from optimizer import calculate_daily_returns, calculate_annualized_returns, calculate_annualized_covariance
 from optimizer import calculate_portfolio_metrics, optimize_portfolio
 import numpy as np
-
+from feature_eng import save_engineered_features
 
 def main():
     # 1. Fetch the data (it will load instantly from your CSV now!)
     historical_data = load_portfolio_data(tickers=["AAPL", "JNJ", "MSFT"])
+
+    
+    engineered_features = save_engineered_features(historical_data)
     
     # 2. Calculate daily returns
     daily_returns = calculate_daily_returns(historical_data)

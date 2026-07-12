@@ -22,7 +22,7 @@ def get_sp500_tickers():
     
     return cleaned_tickers
 
-def load_portfolio_data(tickers=None, period="3y", filename="sp500_historical_data.csv"):
+def load_portfolio_data(tickers=None, period="3y", filename="data/sp500_historical_data.csv"):
     """
     Loads historical adjusted close data. 
     If a local CSV exists, it loads from the disk. Otherwise, it downloads fresh data.
