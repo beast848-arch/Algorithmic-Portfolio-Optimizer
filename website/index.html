@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algorithmic Portfolio Optimizer — Build Your S&P 500 Portfolio</title>
+  <meta name="description" content="Select up to 35 stocks from the S&P 500 to build a custom portfolio. Our optimizer calculates real returns, volatility and Sharpe ratio." />
+  <meta name="keywords" content="portfolio optimizer, S&P 500 stock picker, Sharpe ratio, Modern Portfolio Theory, AI trading" />
+  <meta property="og:title" content="Algorithmic Portfolio Optimizer" />
+  <meta property="og:description" content="Pick up to 35 S&P 500 stocks. Calculate real returns, volatility & Sharpe Ratio." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav id="navbar" aria-label="Main navigation">
+    <div class="container nav-inner">
+      <a href="#hero" class="nav-logo" id="nav-logo-link">
+        <span class="logo-icon" aria-hidden="true">📈</span>
+        <span>AlgoPortfolio</span>
+      </a>
+      <ul class="nav-links" role="list">
+        <li><a href="#stock-selector" id="nav-selector">Stock Selector</a></li>
+        <li><a href="#results" id="nav-results">Results</a></li>
+        <li><a href="https://github.com/" target="_blank" rel="noopener" class="nav-cta" id="nav-github">GitHub ↗</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero" aria-labelledby="hero-heading">
+    <div class="hero-bg"></div>
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+    <div class="orb orb-3" aria-hidden="true"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge" aria-label="Project status">
+          <span class="dot" aria-hidden="true"></span>
+          Powered by Deep Learning &amp; Modern Portfolio Theory
+        </div>
+        <h1 class="hero-title" id="hero-heading">
+          Algorithmic<br />
+          <span class="gradient-text">Portfolio</span><br />
+          Optimizer
+        </h1>
+        <p class="hero-desc">
+          Pick <strong>up to 35 stocks</strong> from the S&amp;P 500.
+          We fetch <strong>live market data</strong>, then calculate your portfolio's
+          real annualized return, volatility, and Sharpe Ratio.
+        </p>
+        <div class="hero-actions">
+          <a href="#stock-selector" class="btn-primary" id="hero-start-btn">
+            <span aria-hidden="true">🚀</span> Build My Portfolio
+          </a>
+          <a href="https://github.com/" target="_blank" rel="noopener" class="btn-secondary" id="hero-github-btn">
+            <span aria-hidden="true">⭐</span> View on GitHub
+          </a>
+        </div>
+        <div class="hero-stats" aria-label="Project highlights">
+          <div class="hero-stat"><div class="stat-value">150+</div><div class="stat-label">Stocks Available</div></div>
+          <div class="hero-stat"><div class="stat-value">35</div><div class="stat-label">Max Selection</div></div>
+          <div class="hero-stat"><div class="stat-value">1Y</div><div class="stat-label">Live Market Data</div></div>
+          <div class="hero-stat"><div class="stat-value">252</div><div class="stat-label">Trading Days / Year</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STOCK SELECTOR -->
+  <section id="stock-selector" aria-labelledby="selector-heading">
+    <div class="container">
+
+      <div class="fade-up">
+        <span class="section-tag">Step 1</span>
+        <h2 class="section-title" id="selector-heading">Build Your <span class="gradient-text">Portfolio</span></h2>
+        <p class="section-subtitle">
+          Search and select <strong>2–35 stocks</strong> from the S&amp;P 500. Then hit
+          <strong>Calculate</strong> to fetch live prices and compute your real metrics.
+        </p>
+      </div>
+
+      <!-- Selection Status Bar -->
+      <div class="selection-bar fade-up" id="selection-bar" aria-live="polite">
+        <div class="selection-info">
+          <span class="selection-count-label">Selected:</span>
+          <span class="selection-count" id="selection-count">0</span>
+          <span class="selection-max">/ 35</span>
+        </div>
+        <div class="selection-progress-wrap">
+          <div class="selection-progress-bar" id="selection-progress"
+               role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="35"
+               style="width:0%"></div>
+        </div>
+        <div class="selection-actions">
+          <button class="sel-action-btn" id="select-all-btn">Select Visible</button>
+          <button class="sel-action-btn danger" id="clear-btn">Clear All</button>
+          <button class="sel-action-btn" id="copy-btn">📋 Copy</button>
+          <button class="sel-action-btn primary" id="calculate-btn" disabled
+                  title="Select at least 2 stocks to calculate">
+            <span id="calc-btn-icon">📊</span> Calculate
+          </button>
+        </div>
+      </div>
+
+      <!-- Selected Chips Preview -->
+      <div class="selected-preview fade-up" id="selected-preview" aria-label="Selected stocks">
+        <div class="selected-preview-inner" id="selected-preview-inner">
+          <span class="preview-placeholder" id="preview-placeholder">
+            No stocks selected yet — click any card below to add it to your portfolio.
+          </span>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="selector-controls fade-up">
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input type="text" id="stock-search" class="search-input"
+                 placeholder="Search by ticker or company name…"
+                 autocomplete="off" aria-label="Search stocks" />
+          <button class="search-clear" id="search-clear-btn" aria-label="Clear search" style="display:none">✕</button>
+        </div>
+        <div class="filter-tabs" id="filter-tabs" role="tablist" aria-label="Filter by sector">
+          <button class="filter-tab active" data-sector="all"              role="tab" id="filter-all">All</button>
+          <button class="filter-tab" data-sector="Technology"              role="tab" id="filter-tech">Technology</button>
+          <button class="filter-tab" data-sector="Communication"           role="tab" id="filter-comm">Communication</button>
+          <button class="filter-tab" data-sector="Healthcare"              role="tab" id="filter-health">Healthcare</button>
+          <button class="filter-tab" data-sector="Financials"              role="tab" id="filter-fin">Financials</button>
+          <button class="filter-tab" data-sector="Consumer Disc."          role="tab" id="filter-disc">Consumer Disc.</button>
+          <button class="filter-tab" data-sector="Consumer Staples"        role="tab" id="filter-staples">Staples</button>
+          <button class="filter-tab" data-sector="Energy"                  role="tab" id="filter-energy">Energy</button>
+          <button class="filter-tab" data-sector="Industrials"             role="tab" id="filter-ind">Industrials</button>
+          <button class="filter-tab" data-sector="Utilities"               role="tab" id="filter-util">Utilities</button>
+          <button class="filter-tab" data-sector="Real Estate"             role="tab" id="filter-re">Real Estate</button>
+          <button class="filter-tab" data-sector="Materials"               role="tab" id="filter-mat">Materials</button>
+          <button class="filter-tab" data-sector="Macro"                   role="tab" id="filter-macro">Macro/ETF</button>
+        </div>
+      </div>
+
+      <!-- Limit Warning -->
+      <div class="limit-warning" id="limit-warning" style="display:none">
+        <span aria-hidden="true">⚠️</span>
+        Maximum of 35 stocks reached. Remove a stock to add another.
+      </div>
+
+      <!-- No Results -->
+      <div class="no-results" id="no-results" style="display:none">
+        <span aria-hidden="true">🔎</span>
+        <p>No stocks found for "<span id="no-results-term"></span>"</p>
+      </div>
+
+      <!-- Stock Grid -->
+      <div class="stock-grid" id="stock-grid" role="list" aria-label="S&P 500 stock list">
+        <!-- Populated by JS -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" aria-labelledby="results-heading">
+    <div class="container">
+
+      <div class="fade-up">
+        <span class="section-tag" id="results-tag">Step 2</span>
+        <h2 class="section-title" id="results-heading">Portfolio <span class="gradient-text">Analysis</span></h2>
+        <p class="section-subtitle" id="results-subtitle">
+          Select your stocks above and click <strong>Calculate</strong> to fetch live market
+          data and compute real portfolio metrics.
+        </p>
+      </div>
+
+      <!-- ── LOADING STATE ── -->
+      <div id="results-loading" style="display:none">
+        <div class="loading-card fade-up">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <div class="loading-text">Fetching live market data…</div>
+          <div class="loading-sub" id="loading-sub">Connecting to Yahoo Finance</div>
+          <div class="loading-progress-wrap">
+            <div class="loading-progress-bar" id="loading-progress-bar" style="width:0%"></div>
+          </div>
+          <div class="loading-stocks" id="loading-stocks"></div>
+        </div>
+      </div>
+
+      <!-- ── EMPTY STATE ── -->
+      <div id="results-empty" class="results-empty fade-up">
+        <div class="empty-icon" aria-hidden="true">📊</div>
+        <div class="empty-title">No analysis yet</div>
+        <p class="empty-desc">Select at least 2 stocks from the picker above, then click the <strong>Calculate</strong> button to compute real portfolio metrics.</p>
+        <a href="#stock-selector" class="btn-primary empty-cta" id="empty-go-btn">
+          <span aria-hidden="true">↑</span> Go to Stock Selector
+        </a>
+      </div>
+
+      <!-- ── POPULATED RESULTS ── -->
+      <div id="results-populated" style="display:none">
+
+        <!-- Top metric cards -->
+        <div class="results-grid" role="list" id="results-metric-grid">
+          <div class="metric-card blue" role="listitem" id="card-return">
+            <div class="metric-icon" aria-hidden="true">📈</div>
+            <div class="metric-value" id="metric-return">—</div>
+            <div class="metric-label">Annualized Return</div>
+            <p class="metric-desc">Equal-weight portfolio expected annual return based on 1 year of historical data.</p>
+          </div>
+          <div class="metric-card green" role="listitem" id="card-vol">
+            <div class="metric-icon" aria-hidden="true">🛡️</div>
+            <div class="metric-value" id="metric-vol">—</div>
+            <div class="metric-label">Annualized Volatility</div>
+            <p class="metric-desc">Portfolio risk — annualized standard deviation of daily returns.</p>
+          </div>
+          <div class="metric-card purple" role="listitem" id="card-sharpe">
+            <div class="metric-icon" aria-hidden="true">⭐</div>
+            <div class="metric-value" id="metric-sharpe">—</div>
+            <div class="metric-label">Sharpe Ratio</div>
+            <p class="metric-desc">Risk-adjusted return (4% risk-free rate). &gt; 1.0 is considered excellent.</p>
+          </div>
+        </div>
+
+        <!-- Sharpe quality badge -->
+        <div class="sharpe-badge-row fade-up">
+          <div class="sharpe-badge" id="sharpe-badge"></div>
+          <span class="results-meta" id="results-meta"></span>
+        </div>
+
+        <!-- Per-stock breakdown table -->
+        <div class="breakdown-card fade-up">
+          <div class="breakdown-header">
+            <h3 class="breakdown-title">📋 Per-Stock Breakdown</h3>
+            <span class="breakdown-note">Equal-weight allocation · 1-year historical data</span>
+          </div>
+          <div class="table-wrap">
+            <table class="breakdown-table" id="breakdown-table" aria-label="Individual stock metrics">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Company</th>
+                  <th>Weight</th>
+                  <th>Ann. Return</th>
+                  <th>Ann. Volatility</th>
+                  <th>Sharpe</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="breakdown-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <p class="metric-disclaimer fade-up" id="results-disclaimer">
+          <span aria-hidden="true">⚠️</span>
+          Historical data only. Equal-weight portfolio. Not financial advice.
+          Past performance does not guarantee future results.
+        </p>
+
+      </div><!-- /results-populated -->
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-logo">
+          <span aria-hidden="true">📈</span>
+          <span>Algorithmic Portfolio Optimizer</span>
+        </div>
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="#stock-selector" id="footer-selector">Stock Selector</a>
+          <a href="#results" id="footer-results">Results</a>
+          <a href="https://github.com/" target="_blank" rel="noopener" id="footer-github">GitHub ↗</a>
+        </nav>
+        <p class="footer-copy">Built with Modern Portfolio Theory &amp; Deep Learning.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
