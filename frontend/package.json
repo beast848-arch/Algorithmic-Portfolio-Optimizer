@@ -1,0 +1,25 @@
+{
+  "name": "vector-alpha-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev":"next dev","build":"next build","lint":"eslint ."},
+  "dependencies": {
+    "@radix-ui/react-slot":"latest",
+    "class-variance-authority":"latest",
+    "clsx":"latest",
+    "lucide-react":"latest",
+    "next":"^16.2.0",
+    "react":"^19.2.0",
+    "react-dom":"^19.2.0",
+    "recharts":"latest",
+    "tailwind-merge":"latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss":"latest",
+    "@types/node":"^24",
+    "@types/react":"^19.2.0",
+    "@types/react-dom":"^19.2.0",
+    "tailwindcss":"latest",
+    "typescript":"~5.9.3"
+  }
+}
