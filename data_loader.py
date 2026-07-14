@@ -27,11 +27,17 @@ def load_portfolio_data(tickers=None, period="3y", filename="data/sp500_historic
     Loads historical adjusted close data. 
     If a local CSV exists, it loads from the disk. Otherwise, it downloads fresh data.
     """
-    # If a local CSV file already exists, load it immediately to save time and bandwidth
+    # If a local CSV file already exists, load it immediately if columns match
     if os.path.exists(filename):
-        print(f"Loading data from local cache: '{filename}'...")
-        # Ensure the Date column is parsed as dates and set as the DataFrame index
-        return pd.read_csv(filename, index_col="Date", parse_dates=True)
+        print(f"Checking local cache: '{filename}'...")
+        df = pd.read_csv(filename, index_col="Date", parse_dates=True)
+        if tickers is None or set(tickers).issubset(set(df.columns)):
+            print("Local cache validated! Loading historical prices...")
+            if tickers is not None:
+                return df[tickers]
+            return df
+        else:
+            print("Cached data columns do not match requested tickers. Re-downloading fresh data...")
     
     # If no tickers are provided, default to fetching the entire S&P 500
     if tickers is None:

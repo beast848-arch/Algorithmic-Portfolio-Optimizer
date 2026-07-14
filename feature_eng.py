@@ -69,6 +69,10 @@ def engineer_features(price_df):
 
     features = pd.DataFrame(index=price_df.index)
 
+    # Precompute cross-sectional return momentum ranks across the entire market universe
+    rank_return_5 = price_df.pct_change(5).rank(axis=1, pct=True)
+    rank_return_20 = price_df.pct_change(20).rank(axis=1, pct=True)
+
     for ticker in price_df.columns:
 
         price = price_df[ticker]
@@ -148,6 +152,12 @@ def engineer_features(price_df):
         )
 
         # --------------------------------------------------
+        # Cross-Sectional Return Momentum Rank
+        # --------------------------------------------------
+        stock["Rank_Return_5"] = rank_return_5[ticker]
+        stock["Rank_Return_20"] = rank_return_20[ticker]
+
+        # --------------------------------------------------
         # Prefix every feature with ticker name
         # --------------------------------------------------
 
@@ -163,6 +173,9 @@ def engineer_features(price_df):
 
     # Remove rows containing NaNs from rolling windows
     features = features.dropna()
+
+    # Apply Z-score normalization across all features (mean=0, std=1)
+    features = (features - features.mean()) / (features.std() + 1e-8)
 
     return features
 

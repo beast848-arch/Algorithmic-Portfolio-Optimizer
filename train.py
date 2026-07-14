@@ -20,7 +20,7 @@ def train():
     # 3. Hyperparameters
     batch_size = 32
     learning_rate = 0.001
-    num_epochs = 100
+    num_epochs = 150
 
     # 4. Load Dataset
     print("Loading Dataset into DataLoader...", flush=True)
@@ -41,7 +41,10 @@ def train():
     ).to(device)
 
     criterion = nn.HuberLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=5, min_lr=1e-6
+    )
 
     # 6. Training Loop
     print("\nStarting Epochs...", flush=True)
@@ -57,14 +60,20 @@ def train():
             predictions = model(features)
             loss = criterion(predictions, targets)
             loss.backward()
+
+            # Gradient clipping to prevent gradient explosions / instability across batches
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
             optimizer.step()
 
             running_loss += loss.item()
 
         avg_loss = running_loss / len(train_loader)
+        scheduler.step(avg_loss)
 
         if (epoch + 1) == 1 or (epoch + 1) % 10 == 0:
-            print(f"Epoch [{epoch+1:02d}/{num_epochs}] | Huber Loss: {avg_loss:.6f}", flush=True)
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f"Epoch [{epoch+1:02d}/{num_epochs}] | Huber Loss: {avg_loss:.6f} | LR: {current_lr:.6f}", flush=True)
 
     # 7. Save the Trained Model
     save_path = CONFIG["MODEL_PATH"]

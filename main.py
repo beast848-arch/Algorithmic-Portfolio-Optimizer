@@ -71,10 +71,15 @@ def main():
         predicted_array = model(latest_tensor).cpu().numpy()[0]
 
     ai_predicted_returns = pd.Series(predicted_array, index=tickers)
+    
+    # Annualize 21-day predicted returns (assuming 252 trading days per year)
+    annualized_ai_returns = ai_predicted_returns * (252 / CONFIG["PREDICTION_HORIZON"])
 
-    print("\n--- AI Predicted Expected Returns ---", flush=True)
-    for ticker, ret in ai_predicted_returns.items():
-        print(f"{ticker}: {ret * 100:.2f}%", flush=True)
+    print(f"\n--- AI Predicted Expected Returns ({CONFIG['PREDICTION_HORIZON']}-Day -> Annualized) ---", flush=True)
+    for ticker in tickers:
+        ret_21 = ai_predicted_returns[ticker] * 100
+        ret_ann = annualized_ai_returns[ticker] * 100
+        print(f"{ticker}: {ret_21:6.2f}% (21-Day) -> {ret_ann:6.2f}% (Annualized)", flush=True)
 
     # =========================================================
     # 5. RUN THE PORTFOLIO OPTIMIZER
@@ -83,7 +88,8 @@ def main():
     print("   OPTIMIZING PORTFOLIO (SHARPE RATIO)   ", flush=True)
     print("=" * 40, flush=True)
 
-    optimal_weights = optimize_portfolio(ai_predicted_returns, cov_matrix)
+    # Enforce maximum position limit of 35% (0.35) per asset to capture alpha while preserving diversification
+    optimal_weights = optimize_portfolio(annualized_ai_returns, cov_matrix, max_weight=0.35)
 
     print("\n--- Optimal Portfolio Allocation ---", flush=True)
     for ticker, weight in zip(tickers, optimal_weights):
@@ -94,7 +100,7 @@ def main():
     # 6. FINAL PERFORMANCE METRICS
     # =========================================================
     opt_return, opt_variance, opt_volatility = calculate_portfolio_metrics(
-        optimal_weights, ai_predicted_returns, cov_matrix
+        optimal_weights, annualized_ai_returns, cov_matrix
     )
     opt_sharpe = (opt_return - 0.04) / opt_volatility
 

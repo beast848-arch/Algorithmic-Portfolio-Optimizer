@@ -71,7 +71,7 @@ class TemporalCNN(nn.Module):
     def __init__(
         self,
         num_assets=3,
-        features_per_asset=18,
+        features_per_asset=20,
         hidden_channels=64,
         dropout=0.2,
     ):
@@ -236,7 +236,7 @@ if __name__ == "__main__":
         8,
         30,
         3,
-        18,
+        20,
     )
 
     out = model(dummy)

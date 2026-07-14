@@ -14,12 +14,27 @@ from feature_eng import save_engineered_features
 # GLOBAL CONFIGURATION
 # ==========================================================
 CONFIG = {
-    "NUM_TICKERS": 15,               # Number of top S&P 500 tickers to use
-    "TICKERS": None,                 # Explicit list of tickers (if None, scrapes top NUM_TICKERS)
+    "NUM_TICKERS": 35,               # Number of top S&P 500 tickers to use
+    "TICKERS": [
+        # Tech & Semiconductor Leaders
+        "AAPL", "MSFT", "NVDA", "AVGO", "AMD", "ADBE", "QCOM",
+        # Healthcare & Biotech
+        "LLY", "UNH", "JNJ", "ABBV",
+        # Financials & Payments
+        "JPM", "V", "MA", "GS", "BAC",
+        # Communication & Internet
+        "GOOGL", "META", "NFLX",
+        # Consumer Discretionary & Staples
+        "AMZN", "TSLA", "HD", "PG", "KO", "COST",
+        # Energy, Industrials & Utilities/REITs
+        "XOM", "CVX", "CAT", "GE", "UNP", "NEE", "PLD",
+        # Macro Safe Havens (Gold & Treasuries)
+        "GLD", "TLT", "IEF"
+    ],                               # Curated 35-asset multi-sector universe for institutional diversification
     "PERIOD": "3y",                  # Historical download period
     "WINDOW_SIZE": 63,               # Number of lookback trading days for TemporalCNN input
     "PREDICTION_HORIZON": 21,        # Forward return days to predict
-    "FEATURES_PER_ASSET": 18,        # Technical indicators per asset
+    "FEATURES_PER_ASSET": 20,        # Technical indicators per asset (including 2 new rank features)
     "HIDDEN_CHANNELS": 64,           # CNN hidden channels
     "DROPOUT": 0.2,                  # CNN dropout rate
     "DATA_DIR": "data",
@@ -58,7 +73,7 @@ def download_and_prepare_data(config=CONFIG, force_download=False):
     Downloads historical price data and engineers features based on CONFIG.
     Returns:
         historical_data (pd.DataFrame): Daily closing prices
-        engineered_features (pd.DataFrame): 18 features per asset
+        engineered_features (pd.DataFrame): features per asset
         tickers (list): List of ticker symbols
     """
     os.makedirs(config["DATA_DIR"], exist_ok=True)
@@ -68,6 +83,8 @@ def download_and_prepare_data(config=CONFIG, force_download=False):
 
     if force_download and os.path.exists(config["PRICE_CSV"]):
         os.remove(config["PRICE_CSV"])
+        if os.path.exists(config["FEATURE_CSV"]):
+            os.remove(config["FEATURE_CSV"])
 
     print("Fetching market data...", flush=True)
     historical_data = load_portfolio_data(
@@ -76,11 +93,26 @@ def download_and_prepare_data(config=CONFIG, force_download=False):
         filename=config["PRICE_CSV"]
     )
 
-    print("Generating engineered features...", flush=True)
-    engineered_features = save_engineered_features(
-        historical_data,
-        filename=config["FEATURE_CSV"]
-    )
+    # Check if FEATURE_CSV needs to be regenerated due to missing tickers or column count mismatch
+    regenerate_features = force_download or not os.path.exists(config["FEATURE_CSV"])
+    if not regenerate_features:
+        try:
+            feat_check = pd.read_csv(config["FEATURE_CSV"], index_col=0, nrows=1)
+            expected_cols = len(tickers) * config["FEATURES_PER_ASSET"]
+            if len(feat_check.columns) != expected_cols or not all(f"{t}_Price" in feat_check.columns for t in tickers):
+                regenerate_features = True
+        except Exception:
+            regenerate_features = True
+
+    if regenerate_features:
+        print("Generating engineered features...", flush=True)
+        engineered_features = save_engineered_features(
+            historical_data,
+            filename=config["FEATURE_CSV"]
+        )
+    else:
+        print(f"Loading engineered features from local cache: '{config['FEATURE_CSV']}'...", flush=True)
+        engineered_features = pd.read_csv(config["FEATURE_CSV"], index_col=0, parse_dates=True)
 
     return historical_data, engineered_features, tickers
 
@@ -109,13 +141,14 @@ class PortfolioDataset(Dataset):
         self.prediction_horizon = config["PREDICTION_HORIZON"]
 
         # --------------------------------------------------
-        # Load engineered features
+        # Load engineered features and apply normalization
         # --------------------------------------------------
         self.features = pd.read_csv(
             config["FEATURE_CSV"],
             index_col=0,
             parse_dates=True,
         )
+        self.features = (self.features - self.features.mean()) / (self.features.std() + 1e-8)
 
         # --------------------------------------------------
         # Load prices
@@ -137,6 +170,10 @@ class PortfolioDataset(Dataset):
         # --------------------------------------------------
         future_prices = self.prices.shift(-self.prediction_horizon)
         self.targets = (future_prices / self.prices) - 1
+
+        # Remove market beta by subtracting daily cross-sectional average (Excess Return / Alpha)
+        market_return = self.targets.mean(axis=1)
+        self.targets = self.targets.sub(market_return, axis=0)
 
         # Remove rows without future targets
         valid_rows = len(self.features) - self.prediction_horizon

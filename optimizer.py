@@ -31,14 +31,19 @@ def calculate_annualized_returns(daily_returns, trading_days=252):
 
 def calculate_annualized_covariance(daily_returns, trading_days=252):
     """
-    Calculates the annualized covariance matrix.
-    Shows how the assets move together over the course of a year.
+    Calculates the annualized covariance matrix using Ledoit-Wolf shrinkage
+    to reduce estimation noise and improve out-of-sample Sharpe Ratio stability.
     """
-    print("Calculating annualized covariance matrix...")
-    
-    # Calculate daily covariance matrix, then annualize it
-    cov_matrix = daily_returns.cov() * trading_days
-    
+    print("Calculating annualized covariance matrix (with Ledoit-Wolf shrinkage)...")
+    try:
+        from sklearn.covariance import LedoitWolf
+        lw = LedoitWolf()
+        cov_matrix_array = lw.fit(daily_returns).covariance_ * trading_days
+        cov_matrix = pd.DataFrame(cov_matrix_array, index=daily_returns.columns, columns=daily_returns.columns)
+    except Exception as e:
+        print(f"Fallback to sample covariance due to: {e}")
+        cov_matrix = daily_returns.cov() * trading_days
+        
     return cov_matrix
 
 def calculate_portfolio_metrics(weights, annualized_returns, cov_matrix):
@@ -73,17 +78,20 @@ def negative_sharpe(weights, annualized_returns, cov_matrix, risk_free_rate=0.04
     # 3. Return the negative value for the optimizer
     return -sharpe
 
-def optimize_portfolio(annualized_returns, cov_matrix, risk_free_rate=0.04):
+def optimize_portfolio(annualized_returns, cov_matrix, risk_free_rate=0.04, max_weight=0.20):
     """
     Uses SciPy to find the optimal portfolio weights that maximize the Sharpe Ratio.
     """
     num_assets = len(annualized_returns)
     
+    # Ensure max_weight is at least 1/num_assets so weights can sum to 1.0
+    effective_max_weight = max(max_weight, 1.0 / num_assets)
+    
     # 1. Set the starting guess (e.g., equal weights for all stocks)
     initial_weights = np.array([1.0 / num_assets] * num_assets)
     
-    # 2. Set the bounds: You can't invest less than 0% or more than 100% in a single stock
-    bounds = tuple((0.0, 1.0) for _ in range(num_assets))
+    # 2. Set the bounds: Minimum 0%, maximum effective_max_weight (default 20%) per stock to enforce diversification
+    bounds = tuple((0.0, effective_max_weight) for _ in range(num_assets))
     
     # 3. Set the constraints: All weights must sum up to exactly 1.0 (100%)
     # In SciPy, an 'eq' constraint means the lambda function must equal exactly 0.
