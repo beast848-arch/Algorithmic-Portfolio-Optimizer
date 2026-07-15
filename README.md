@@ -1,10 +1,10 @@
-﻿# 📈 Algorithmic Portfolio Optimizer
+# 📈 Algorithmic Portfolio Optimizer
 
 > **AI-powered portfolio optimization** combining a Temporal CNN for return prediction with Modern Portfolio Theory (MPT) to maximize risk-adjusted returns across 35 S&P 500 assets.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.7%2B-ee4c2c?style=flat-square&logo=pytorch)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+
 
 ---
 
@@ -226,14 +226,3 @@ Open `website/index.html` in any modern browser:
 | `matplotlib >= 3.10` | Visualization utilities |
 | `tqdm >= 4.67` | Training progress bars |
 
----
-
-## ⚠️ Disclaimer
-
-> This project is for **educational and research purposes only**. It is not financial advice. Past model performance does not guarantee future results. Always consult a qualified financial professional before making investment decisions.
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
