@@ -153,6 +153,8 @@ def optimize():
     
     return jsonify(response)
 
+# Initialize backend globally so it runs on import (e.g. when run by Gunicorn on Render)
+initialize_backend()
+
 if __name__ == '__main__':
-    initialize_backend()
     app.run(debug=True, port=5000)
