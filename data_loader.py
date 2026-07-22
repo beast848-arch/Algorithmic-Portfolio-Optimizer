@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import yfinance as yf
+from sqlalchemy import create_engine, inspect
 
 def get_sp500_tickers():
     """
@@ -22,22 +23,33 @@ def get_sp500_tickers():
     
     return cleaned_tickers
 
-def load_portfolio_data(tickers=None, period="3y", filename="data/sp500_historical_data.csv"):
+def load_portfolio_data(tickers=None, period="3y", database_url="sqlite:///local_fallback.db"):
     """
     Loads historical adjusted close data. 
-    If a local CSV exists, it loads from the disk. Otherwise, it downloads fresh data.
+    If data exists in the database, it loads from there. Otherwise, it downloads fresh data.
     """
-    # If a local CSV file already exists, load it immediately if columns match
-    if os.path.exists(filename):
-        print(f"Checking local cache: '{filename}'...")
-        df = pd.read_csv(filename, index_col="Date", parse_dates=True)
-        if tickers is None or set(tickers).issubset(set(df.columns)):
-            print("Local cache validated! Loading historical prices...")
-            if tickers is not None:
-                return df[tickers]
-            return df
-        else:
-            print("Cached data columns do not match requested tickers. Re-downloading fresh data...")
+    engine = create_engine(database_url)
+    table_name = "historical_prices"
+    
+    # Check if table exists
+    inspector = inspect(engine)
+    if inspector.has_table(table_name):
+        print(f"Checking database table: '{table_name}'...")
+        try:
+            df = pd.read_sql_table(table_name, con=engine, index_col="Date")
+            # Parse dates just in case
+            df.index = pd.to_datetime(df.index)
+            
+            if tickers is None or set(tickers).issubset(set(df.columns)):
+                print("Database cache validated! Loading historical prices...")
+                if tickers is not None:
+                    return df[tickers]
+                return df
+            else:
+                print("Cached data columns do not match requested tickers. Re-downloading fresh data...")
+        except Exception as e:
+            print(f"Error reading from database: {e}")
+            print("Re-downloading fresh data...")
     
     # If no tickers are provided, default to fetching the entire S&P 500
     if tickers is None:
@@ -54,10 +66,9 @@ def load_portfolio_data(tickers=None, period="3y", filename="data/sp500_historic
     # Clean up missing data caused by companies listing/delisting within the 3-year window
     closing_prices = closing_prices.ffill().bfill()
     
-    # Save to a local CSV file for future runs
-    closing_prices.to_csv(filename)
-    print(f"Data successfully saved to '{filename}'!")
+    # Save to database for future runs
+    print(f"Saving data to database table '{table_name}'...")
+    closing_prices.to_sql(table_name, con=engine, if_exists='replace', index=True, index_label="Date")
+    print("Data successfully saved!")
     
     return closing_prices
-
-

@@ -86,7 +86,6 @@ const SP500_STOCKS = [
   { ticker:'USB',   name:'U.S. Bancorp',                 sector:'Financials' },
   { ticker:'PGR',   name:'Progressive Corp.',            sector:'Financials' },
   { ticker:'CB',    name:'Chubb Ltd.',                   sector:'Financials' },
-  { ticker:'MMC',   name:'Marsh McLennan',               sector:'Financials' },
   { ticker:'ICE',   name:'Intercontinental Exchange',    sector:'Financials' },
   { ticker:'CME',   name:'CME Group Inc.',               sector:'Financials' },
   { ticker:'AON',   name:'Aon PLC',                      sector:'Financials' },
@@ -431,98 +430,8 @@ copyBtn.addEventListener('click', () => {
    ================================================================ */
 
 /* ----------------------------------------------------------------
-   Fetch 1 year of adjusted closing prices from Yahoo Finance.
-   Tries direct first, then falls back to two CORS proxies.
+   (Math calculations moved to AI Backend Python Server)
    ---------------------------------------------------------------- */
-async function fetchPrices(ticker) {
-  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d&events=div%2Csplits`;
-  const proxies  = [
-    '',                                        // direct
-    'https://corsproxy.io/?url=',
-    'https://api.allorigins.win/raw?url=',
-  ];
-
-  for (const proxy of proxies) {
-    try {
-      const url  = proxy ? proxy + encodeURIComponent(yahooUrl) : yahooUrl;
-      const res  = await fetch(url, { credentials: 'omit' });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const result = data?.chart?.result?.[0];
-      if (!result) continue;
-      // prefer adjclose, fallback to close
-      const closes = result.indicators?.adjclose?.[0]?.adjclose
-                  || result.indicators?.quote?.[0]?.close;
-      if (!closes || closes.length < 10) continue;
-      // filter nulls
-      return closes.filter(p => p != null && !isNaN(p) && p > 0);
-    } catch (_) { /* try next proxy */ }
-  }
-  return null; // all attempts failed
-}
-
-/* ----------------------------------------------------------------
-   Math helpers
-   ---------------------------------------------------------------- */
-function dailyReturns(prices) {
-  const out = [];
-  for (let i = 1; i < prices.length; i++) {
-    if (prices[i - 1] > 0) out.push((prices[i] - prices[i - 1]) / prices[i - 1]);
-  }
-  return out;
-}
-
-function mean(arr) {
-  if (!arr.length) return 0;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-
-function sampleStd(arr, mu) {
-  if (arr.length < 2) return 0;
-  const m = (mu !== undefined) ? mu : mean(arr);
-  return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1));
-}
-
-// Covariance between two ALIGNED return series
-function covariance(a, b) {
-  if (a.length !== b.length || a.length < 2) return 0;
-  const ma = mean(a), mb = mean(b);
-  return a.reduce((s, x, i) => s + (x - ma) * (b[i] - mb), 0) / (a.length - 1);
-}
-
-// Build annualized covariance matrix for a map of { ticker: returns[] }
-function buildCovMatrix(returnsMap) {
-  const tickers = Object.keys(returnsMap);
-  const n       = tickers.length;
-  // align to minimum shared length
-  const minLen  = Math.min(...tickers.map(t => returnsMap[t].length));
-  const aligned = {};
-  tickers.forEach(t => { aligned[t] = returnsMap[t].slice(-minLen); });
-
-  const cov = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: n }, (__, j) =>
-      covariance(aligned[tickers[i]], aligned[tickers[j]]) * TRADING_DAYS
-    )
-  );
-  return { cov, tickers, aligned };
-}
-
-// Portfolio metrics with equal weights
-function portfolioMetrics(tickers, covMatrix, annualMeans) {
-  const n = tickers.length;
-  const w = Array(n).fill(1 / n);  // equal weight
-
-  const pReturn = w.reduce((s, wi, i) => s + wi * annualMeans[i], 0);
-
-  let pVar = 0;
-  for (let i = 0; i < n; i++)
-    for (let j = 0; j < n; j++)
-      pVar += w[i] * w[j] * covMatrix[i][j];
-
-  const pVol    = Math.sqrt(Math.max(pVar, 0));
-  const pSharpe = pVol > 0 ? (pReturn - RISK_FREE) / pVol : 0;
-  return { pReturn, pVol, pSharpe, weights: w };
-}
 
 /* ----------------------------------------------------------------
    Sharpe quality label
@@ -572,137 +481,112 @@ calculateBtn.addEventListener('click', async () => {
   }, 100);
 
   const tickers = Array.from(selected);
-  const total   = tickers.length;
 
-  loadingProgressBar.style.width = '0%';
-  loadingSub.textContent = `Connecting to Yahoo Finance…`;
-  loadingStocks.textContent = '';
+  loadingProgressBar.style.width = '20%';
+  loadingSub.textContent = `Connecting to AI Backend...`;
+  loadingStocks.textContent = tickers.join(' · ');
 
-  // --- Fetch all tickers ---
-  const pricesMap  = {};
-  const failedList = [];
+  try {
+    const response = await fetch('/api/optimize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: tickers })
+    });
 
-  for (let i = 0; i < tickers.length; i++) {
-    const ticker = tickers[i];
-    loadingSub.textContent    = `Fetching ${ticker}… (${i + 1}/${total})`;
-    loadingStocks.textContent = tickers.slice(0, i + 1).join(' · ');
-    loadingProgressBar.style.width = `${((i + 1) / total) * 100}%`;
+    loadingProgressBar.style.width = '60%';
+    loadingSub.textContent = `Optimizing Portfolio...`;
 
-    const prices = await fetchPrices(ticker);
-    if (prices && prices.length >= 20) {
-      pricesMap[ticker] = prices;
-    } else {
-      failedList.push(ticker);
+    if (!response.ok) {
+      throw new Error(`Backend Error: ${response.statusText}`);
     }
-  }
 
-  const successTickers = Object.keys(pricesMap);
+    const data = await response.json();
+    loadingProgressBar.style.width = '100%';
 
-  if (successTickers.length < 2) {
+    showResultsPopulated();
+
+    // Render metrics
+    const { expected_return, volatility, sharpe_ratio } = data.metrics;
+    
+    metricReturn.textContent = '';
+    animateValue(metricReturn, expected_return * 100, '%', 2);
+    if (expected_return < 0) metricReturn.classList.add('negative');
+    else             metricReturn.classList.remove('negative');
+
+    metricVol.textContent = '';
+    animateValue(metricVol, volatility * 100, '%', 2);
+
+    metricSharpe.textContent = '';
+    animateValue(metricSharpe, sharpe_ratio, '', 3);
+    if (sharpe_ratio < 0) metricSharpe.classList.add('negative');
+    else             metricSharpe.classList.remove('negative');
+
+    const ql = sharpeLabel(sharpe_ratio);
+    sharpeBadge.className = `sharpe-badge ${ql.cls}`;
+    sharpeBadge.textContent = ql.text;
+
+    const dateStr = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    resultsMeta.textContent = `${tickers.length} stocks · AI Optimal Allocation · Calculated ${dateStr}`;
+
+    // Render Table
+    breakdownTbody.innerHTML = '';
+    
+    // Sort by allocated weight descending
+    const sortedTickers = tickers.sort((a, b) => data.allocation[b] - data.allocation[a]);
+    
+    sortedTickers.forEach((ticker, idx) => {
+      const weight = data.allocation[ticker] || 0;
+      const aiPred = data.ai_predictions[ticker] || 0;
+      const metrics = data.individual_metrics ? data.individual_metrics[ticker] : null;
+      
+      const tr = document.createElement('tr');
+      tr.style.animationDelay = `${idx * 30}ms`;
+      
+      const wPct = (weight * 100).toFixed(2);
+      const aiPredPct = (aiPred * 100).toFixed(2);
+      const aiPredCls = aiPred >= 0 ? 'positive' : 'negative';
+      
+      let histRetStr = '—';
+      let histVolStr = '—';
+      let histSharpeStr = '—';
+      let histRetCls = 'na';
+      let histSharpeCls = 'na';
+
+      if (metrics) {
+        const histRet = (metrics.historical_return * 100).toFixed(2);
+        histRetStr = `${metrics.historical_return >= 0 ? '+' : ''}${histRet}%`;
+        histRetCls = metrics.historical_return >= 0 ? 'positive' : 'negative';
+        
+        histVolStr = `${(metrics.historical_volatility * 100).toFixed(2)}%`;
+        
+        const sVal = metrics.historical_sharpe.toFixed(3);
+        histSharpeStr = sVal;
+        histSharpeCls = metrics.historical_sharpe >= 1 ? 'excellent' : metrics.historical_sharpe >= 0.5 ? 'good' : 'poor';
+      }
+      
+      // Determine highlight class for allocation
+      let highlight = '';
+      if (weight >= 0.1) highlight = 'excellent';
+      else if (weight >= 0.05) highlight = 'good';
+      
+      tr.innerHTML = `
+        <td class="td-ticker">${ticker}</td>
+        <td class="td-company">${COMPANY_MAP[ticker] || '—'}</td>
+        <td class="td-weight ${highlight}">${wPct}%</td>
+        <td class="td-return ${aiPredCls}">${aiPred >= 0 ? '+' : ''}${aiPredPct}%</td>
+        <td class="td-return ${histRetCls}">${histRetStr}</td>
+        <td class="td-vol">${histVolStr}</td>
+        <td class="td-sharpe ${histSharpeCls}">${histSharpeStr}</td>
+        <td><span class="status-pill ok">✓ Active</span></td>
+      `;
+      breakdownTbody.appendChild(tr);
+    });
+
+  } catch (error) {
+    console.error(error);
     showResultsEmpty();
-    resultsMeta.textContent = '⚠️ Could not fetch enough data. Check your internet connection and try again.';
-    isCalculating = false;
-    calculateBtn.disabled = false;
-    document.getElementById('calc-btn-icon').textContent = '📊';
-    return;
+    resultsMeta.textContent = `⚠️ Could not connect to the backend API. Please ensure app.py is running. Error: ${error.message}`;
   }
-
-  // --- Calculate per-stock metrics ---
-  const stockMetrics = {};
-  const returnsMap   = {};
-
-  successTickers.forEach(ticker => {
-    const ret     = dailyReturns(pricesMap[ticker]);
-    const mu      = mean(ret);
-    const sigma   = sampleStd(ret, mu);
-    const annRet  = mu * TRADING_DAYS;
-    const annVol  = sigma * Math.sqrt(TRADING_DAYS);
-    const sharpe  = annVol > 0 ? (annRet - RISK_FREE) / annVol : 0;
-    stockMetrics[ticker] = { annRet, annVol, sharpe, dataPoints: ret.length };
-    returnsMap[ticker]   = ret;
-  });
-
-  // --- Portfolio-level metrics ---
-  const { cov, tickers: covTickers } = buildCovMatrix(returnsMap);
-  const annMeans = covTickers.map(t => stockMetrics[t].annRet);
-  const { pReturn, pVol, pSharpe } = portfolioMetrics(covTickers, cov, annMeans);
-
-  // --- Render metric cards ---
-  showResultsPopulated();
-
-  // Return
-  const retPct = (pReturn * 100).toFixed(2);
-  metricReturn.textContent = '';
-  animateValue(metricReturn, pReturn * 100, '%', 2);
-  if (pReturn < 0) metricReturn.classList.add('negative');
-  else             metricReturn.classList.remove('negative');
-
-  // Volatility
-  metricVol.textContent = '';
-  animateValue(metricVol, pVol * 100, '%', 2);
-
-  // Sharpe
-  metricSharpe.textContent = '';
-  animateValue(metricSharpe, pSharpe, '', 3);
-  if (pSharpe < 0) metricSharpe.classList.add('negative');
-  else             metricSharpe.classList.remove('negative');
-
-  // Sharpe badge
-  const ql = sharpeLabel(pSharpe);
-  sharpeBadge.className = `sharpe-badge ${ql.cls}`;
-  sharpeBadge.textContent = ql.text;
-
-  // Meta info
-  const dateStr = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
-  resultsMeta.textContent = `${successTickers.length} stocks · Equal weights · 1-year data · Calculated ${dateStr}`;
-  if (failedList.length > 0)
-    resultsMeta.textContent += ` · ⚠️ ${failedList.length} stock(s) unavailable: ${failedList.join(', ')}`;
-
-  // --- Breakdown table ---
-  breakdownTbody.innerHTML = '';
-  const weight = (1 / successTickers.length * 100).toFixed(2);
-
-  // Sort by individual Sharpe descending
-  const sortedTickers = [...successTickers].sort((a, b) => stockMetrics[b].sharpe - stockMetrics[a].sharpe);
-
-  sortedTickers.forEach((ticker, idx) => {
-    const m   = stockMetrics[ticker];
-    const tr  = document.createElement('tr');
-    tr.style.animationDelay = `${idx * 30}ms`;
-
-    const retPct  = (m.annRet * 100).toFixed(2);
-    const volPct  = (m.annVol * 100).toFixed(2);
-    const sVal    = m.sharpe.toFixed(3);
-    const retCls  = m.annRet >= 0 ? 'positive' : 'negative';
-    const shClass = m.sharpe >= 1 ? 'excellent' : m.sharpe >= 0.5 ? 'good' : 'poor';
-
-    tr.innerHTML = `
-      <td class="td-ticker">${ticker}</td>
-      <td class="td-company">${COMPANY_MAP[ticker] || '—'}</td>
-      <td class="td-weight">${weight}%</td>
-      <td class="td-return ${retCls}">${m.annRet >= 0 ? '+' : ''}${retPct}%</td>
-      <td class="td-vol">${volPct}%</td>
-      <td class="td-sharpe ${shClass}">${sVal}</td>
-      <td><span class="status-pill ok">✓ OK</span></td>
-    `;
-    breakdownTbody.appendChild(tr);
-  });
-
-  // Add failed rows
-  failedList.forEach((ticker, idx) => {
-    const tr = document.createElement('tr');
-    tr.style.animationDelay = `${(sortedTickers.length + idx) * 30}ms`;
-    tr.innerHTML = `
-      <td class="td-ticker">${ticker}</td>
-      <td class="td-company">${COMPANY_MAP[ticker] || '—'}</td>
-      <td class="td-weight">—</td>
-      <td class="td-return na">—</td>
-      <td class="td-vol">—</td>
-      <td class="td-sharpe na">—</td>
-      <td><span class="status-pill failed">✗ Unavailable</span></td>
-    `;
-    breakdownTbody.appendChild(tr);
-  });
 
   isCalculating = false;
   calculateBtn.disabled = false;

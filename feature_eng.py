@@ -180,22 +180,27 @@ def engineer_features(price_df):
     return features
 
 
+from sqlalchemy import create_engine
+
 # ==========================================================
 # Save Features
 # ==========================================================
 
 def save_engineered_features(
     price_df,
-    filename="data/engineered_data.csv"
+    database_url="sqlite:///local_fallback.db"
 ):
     """
-    Generate engineered features and save them.
+    Generate engineered features and save them to the database.
     """
 
     features = engineer_features(price_df)
 
-    features.to_csv(filename)
-
-    print(f"Engineered features saved to '{filename}'")
+    engine = create_engine(database_url)
+    table_name = "engineered_features"
+    
+    print(f"Saving engineered features to database table '{table_name}'...")
+    features.to_sql(table_name, con=engine, if_exists='replace', index=True, index_label="Date")
+    print("Engineered features successfully saved!")
 
     return features

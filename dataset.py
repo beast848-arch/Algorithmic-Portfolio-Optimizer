@@ -3,34 +3,22 @@ import io
 import requests
 import numpy as np
 import pandas as pd
+from sqlalchemy import create_engine, inspect
 
 import torch
 from torch.utils.data import Dataset
 
 from data_loader import load_portfolio_data
-from feature_eng import save_engineered_features
+from feature_eng import save_engineered_features, engineer_features
 
 # ==========================================================
 # GLOBAL CONFIGURATION
 # ==========================================================
 CONFIG = {
-    "NUM_TICKERS": 35,               # Number of top S&P 500 tickers to use
+    "NUM_TICKERS": 174,               # Number of top S&P 500 tickers to use
     "TICKERS": [
-        # Tech & Semiconductor Leaders
-        "AAPL", "MSFT", "NVDA", "AVGO", "AMD", "ADBE", "QCOM",
-        # Healthcare & Biotech
-        "LLY", "UNH", "JNJ", "ABBV",
-        # Financials & Payments
-        "JPM", "V", "MA", "GS", "BAC",
-        # Communication & Internet
-        "GOOGL", "META", "NFLX",
-        # Consumer Discretionary & Staples
-        "AMZN", "TSLA", "HD", "PG", "KO", "COST",
-        # Energy, Industrials & Utilities/REITs
-        "XOM", "CVX", "CAT", "GE", "UNP", "NEE", "PLD",
-        # Macro Safe Havens (Gold & Treasuries)
-        "GLD", "TLT", "IEF"
-    ],                               # Curated 35-asset multi-sector universe for institutional diversification
+        "AAPL", "MSFT", "NVDA", "AVGO", "AMD", "ADBE", "QCOM", "TXN", "INTC", "AMAT", "MU", "LRCX", "KLAC", "SNPS", "CDNS", "CRM", "NOW", "INTU", "ORCL", "IBM", "ACN", "PANW", "CRWD", "FTNT", "ANET", "MRVL", "NXPI", "GOOGL", "GOOG", "META", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS", "CHTR", "EA", "TTWO", "LLY", "UNH", "JNJ", "ABBV", "MRK", "PFE", "TMO", "ABT", "DHR", "ISRG", "SYK", "MDT", "VRTX", "REGN", "GILD", "AMGN", "HUM", "CVS", "CI", "ELV", "BSX", "ZTS", "JPM", "V", "MA", "GS", "BAC", "WFC", "MS", "BLK", "SCHW", "AXP", "SPGI", "C", "USB", "PGR", "CB", "ICE", "CME", "AON", "MET", "AMZN", "TSLA", "HD", "MCD", "NKE", "SBUX", "LOW", "BKNG", "TJX", "GM", "F", "ABNB", "RCL", "CCL", "MAR", "HLT", "ORLY", "AZO", "EBAY", "PG", "KO", "COST", "PEP", "WMT", "PM", "MO", "MDLZ", "CL", "KMB", "KR", "GIS", "HSY", "XOM", "CVX", "COP", "EOG", "SLB", "MPC", "PSX", "OXY", "KMI", "HAL", "BKR", "DVN", "CAT", "GE", "UNP", "RTX", "HON", "LMT", "BA", "DE", "UPS", "FDX", "CSX", "NSC", "ETN", "PH", "GD", "NOC", "MMM", "AME", "CARR", "OTIS", "NEE", "SO", "DUK", "D", "AEP", "EXC", "SRE", "PCG", "PLD", "AMT", "EQIX", "SPG", "WELL", "CCI", "PSA", "O", "LIN", "APD", "SHW", "FCX", "NEM", "ECL", "DD", "ALB", "PPG", "GLD", "TLT", "IEF", "SHY", "TIP"
+    ],
     "PERIOD": "3y",                  # Historical download period
     "WINDOW_SIZE": 63,               # Number of lookback trading days for TemporalCNN input
     "PREDICTION_HORIZON": 21,        # Forward return days to predict
@@ -38,8 +26,9 @@ CONFIG = {
     "HIDDEN_CHANNELS": 64,           # CNN hidden channels
     "DROPOUT": 0.2,                  # CNN dropout rate
     "DATA_DIR": "data",
-    "PRICE_CSV": "data/sp500_historical_data.csv",
-    "FEATURE_CSV": "data/engineered_data.csv",
+    "DATABASE_URL": os.environ.get("DATABASE_URL", "sqlite:///local_fallback.db"),
+    "HF_MODEL_REPO": os.environ.get("HF_MODEL_REPO", "username/Algorithmic-Portfolio-Optimizer"),
+    "HF_TOKEN": os.environ.get("HF_TOKEN", ""),
     "MODEL_PATH": "temporal_cnn_weights.pth",
 }
 
@@ -81,38 +70,18 @@ def download_and_prepare_data(config=CONFIG, force_download=False):
     tickers = get_tickers(config)
     print(f"Using {len(tickers)} tickers: {tickers}", flush=True)
 
-    if force_download and os.path.exists(config["PRICE_CSV"]):
-        os.remove(config["PRICE_CSV"])
-        if os.path.exists(config["FEATURE_CSV"]):
-            os.remove(config["FEATURE_CSV"])
+    engine = create_engine(config["DATABASE_URL"])
+    inspector = inspect(engine)
 
     print("Fetching market data...", flush=True)
     historical_data = load_portfolio_data(
         tickers=tickers,
         period=config["PERIOD"],
-        filename=config["PRICE_CSV"]
+        database_url=config["DATABASE_URL"]
     )
 
-    # Check if FEATURE_CSV needs to be regenerated due to missing tickers or column count mismatch
-    regenerate_features = force_download or not os.path.exists(config["FEATURE_CSV"])
-    if not regenerate_features:
-        try:
-            feat_check = pd.read_csv(config["FEATURE_CSV"], index_col=0, nrows=1)
-            expected_cols = len(tickers) * config["FEATURES_PER_ASSET"]
-            if len(feat_check.columns) != expected_cols or not all(f"{t}_Price" in feat_check.columns for t in tickers):
-                regenerate_features = True
-        except Exception:
-            regenerate_features = True
-
-    if regenerate_features:
-        print("Generating engineered features...", flush=True)
-        engineered_features = save_engineered_features(
-            historical_data,
-            filename=config["FEATURE_CSV"]
-        )
-    else:
-        print(f"Loading engineered features from local cache: '{config['FEATURE_CSV']}'...", flush=True)
-        engineered_features = pd.read_csv(config["FEATURE_CSV"], index_col=0, parse_dates=True)
+    print("Generating engineered features in memory (bypassing DB column limits)...", flush=True)
+    engineered_features = engineer_features(historical_data)
 
     return historical_data, engineered_features, tickers
 
@@ -140,24 +109,27 @@ class PortfolioDataset(Dataset):
         self.window_size = config["WINDOW_SIZE"]
         self.prediction_horizon = config["PREDICTION_HORIZON"]
 
-        # --------------------------------------------------
-        # Load engineered features and apply normalization
-        # --------------------------------------------------
-        self.features = pd.read_csv(
-            config["FEATURE_CSV"],
-            index_col=0,
-            parse_dates=True,
-        )
-        self.features = (self.features - self.features.mean()) / (self.features.std() + 1e-8)
+        engine = create_engine(config["DATABASE_URL"])
 
         # --------------------------------------------------
         # Load prices
         # --------------------------------------------------
-        self.prices = pd.read_csv(
-            config["PRICE_CSV"],
-            index_col=0,
-            parse_dates=True,
+        self.prices = pd.read_sql_table(
+            "historical_prices",
+            con=engine,
+            index_col="Date"
         )
+        self.prices.index = pd.to_datetime(self.prices.index)
+        
+        # Filter by requested tickers
+        if config["TICKERS"] is not None:
+            self.prices = self.prices[config["TICKERS"]]
+
+        # --------------------------------------------------
+        # Compute engineered features
+        # --------------------------------------------------
+        from feature_eng import engineer_features
+        self.features = engineer_features(self.prices)
 
         # Align dates
         self.prices = self.prices.loc[self.features.index]

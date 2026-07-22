@@ -1,3 +1,5 @@
+import os
+import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -130,6 +132,27 @@ def train():
     print(f"\nTraining finished! Best Validation Loss achieved: {best_val_loss:.6f}", flush=True)
     print(f"Best model weights are saved at '{save_path}'.", flush=True)
 
+    # 7. Upload to Hugging Face Hub
+    hf_token = os.environ.get("HF_TOKEN")
+    hf_repo = CONFIG.get("HF_MODEL_REPO")
+    
+    if hf_token and hf_repo:
+        print(f"\nUploading model to Hugging Face Hub repository: {hf_repo}...")
+        try:
+            from huggingface_hub import HfApi
+            api = HfApi()
+            api.upload_file(
+                path_or_fileobj=save_path,
+                path_in_repo=save_path,
+                repo_id=hf_repo,
+                token=hf_token,
+                repo_type="model"
+            )
+            print("Successfully uploaded model weights to Hugging Face Hub!")
+        except Exception as e:
+            print(f"Failed to upload to Hugging Face Hub: {e}", file=sys.stderr)
+    else:
+        print("\nSkipping Hugging Face Hub upload. HF_TOKEN or HF_MODEL_REPO environment variables not set.")
 
 if __name__ == "__main__":
     train()

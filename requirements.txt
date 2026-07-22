@@ -20,3 +20,11 @@ matplotlib>=3.10
 
 # Training Utilities
 tqdm>=4.67
+flask
+flask-cors
+gunicorn
+
+# Database and Cloud
+SQLAlchemy
+psycopg2-binary
+huggingface-hub

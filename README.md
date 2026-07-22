@@ -1,6 +1,6 @@
 # 📈 Algorithmic Portfolio Optimizer
 
-> **AI-powered portfolio optimization** combining a Temporal CNN for return prediction with Modern Portfolio Theory (MPT) to maximize risk-adjusted returns across 35 S&P 500 assets.
+> **AI-powered portfolio optimization** combining a Temporal CNN for return prediction with Modern Portfolio Theory (MPT) to maximize risk-adjusted returns across 174 S&P 500 assets.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.7%2B-ee4c2c?style=flat-square&logo=pytorch)](https://pytorch.org/)
@@ -42,9 +42,9 @@ Feature Engineering (20 indicators/asset)
 - 📊 **20 technical indicators** per asset: RSI, MACD, Bollinger Bands, EMA ratios, rolling volatility, momentum ranks, and more
 - 🛡️ **Ledoit-Wolf covariance shrinkage** for robust, out-of-sample risk estimation
 - ⚡ **Sharpe Ratio maximization** via SciPy SLSQP with per-asset position limits (max 35%)
-- 🌐 **Interactive Web Dashboard** — pick stocks and see live results in the browser
-- 💾 **Smart data caching** — downloads once, reuses locally
-- 🎯 **35-asset multi-sector universe** covering Tech, Healthcare, Financials, Energy, and macro safe havens (GLD, TLT, IEF)
+- 🌐 **Interactive Web Dashboard & AI Backend** — Pick stocks in the browser and fetch live predictions from the Flask AI server
+- 💾 **Smart data caching** — downloads once, reuses locally for lightning-fast inference
+- 🎯 **174-asset multi-sector universe** covering Tech, Healthcare, Financials, Energy, and macro safe havens
 
 ---
 
@@ -53,7 +53,8 @@ Feature Engineering (20 indicators/asset)
 ```
 Algorithmic-Portfolio-Optimizer/
 │
-├── main.py                       # End-to-end inference pipeline
+├── app.py                        # Flask API Backend for the Web UI
+├── main.py                       # CLI End-to-end inference pipeline
 ├── train.py                      # Model training script
 ├── model.py                      # TemporalCNN architecture
 ├── dataset.py                    # CONFIG, data download & PyTorch Dataset
@@ -103,18 +104,27 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Run Inference (Pretrained Weights Included)
+### 4. Run the AI Backend & Dashboard
 
 ```bash
-python main.py
+python app.py
 ```
 
 This will:
-- Download 3 years of historical price data from Yahoo Finance
+- Download historical price data from Yahoo Finance (and cache it)
 - Engineer 20 technical features per asset
-- Load the pretrained `temporal_cnn_weights.pth`
-- Predict 21-day forward returns for all 35 assets
-- Compute the optimal portfolio allocation maximizing the Sharpe Ratio
+- Load the pretrained `temporal_cnn_weights.pth` model into memory
+- Pre-compute the historical covariance matrix
+- Start a Flask server on `http://127.0.0.1:5000`
+
+Once the server is running, open `website/index.html` in any web browser to use the interactive AI-powered dashboard!
+
+### 5. CLI Inference (Optional)
+
+If you prefer to run the pipeline via terminal instead of the web dashboard:
+```bash
+python main.py
+```
 
 ---
 
@@ -145,7 +155,7 @@ The best checkpoint (lowest validation loss) is saved automatically to `temporal
 ## 🧩 Model Architecture — TemporalCNN
 
 ```
-Input: (batch, window=63, assets=35, features=20)
+Input: (batch, window=63, assets=174, features=20)
           │
           ▼  [Reshape per asset]
  (batch×assets, features=20, window=63)
@@ -159,11 +169,11 @@ Input: (batch, window=63, assets=35, features=20)
  (batch×assets, 64)
           │
           ▼  Reshape & Flatten
- (batch, assets×64 = 2240)
+ (batch, assets×64 = 11136)
           │
-          ▼  Linear(2240, 128) → ReLU → Dropout → Linear(128, 35)
+          ▼  Linear(11136, 128) → ReLU → Dropout → Linear(128, 174)
           │
-Output: (batch, 35)  — predicted excess returns per asset
+Output: (batch, 174)  — predicted excess returns per asset
 ```
 
 Key design decisions:
@@ -202,14 +212,14 @@ The optimizer uses **Modern Portfolio Theory (MPT)** with several enhancements:
 
 ---
 
-## 🌐 Web Dashboard
+## 🌐 Web Dashboard & AI Server
 
 An interactive, browser-based portfolio builder lives in the `website/` folder.
 
-Open `website/index.html` in any modern browser:
-- Browse and select stocks from the full S&P 500
-- Instantly see calculated annualized return, volatility, and Sharpe Ratio
-- No server or backend required — runs entirely client-side
+1. Ensure the backend is running (`python app.py`).
+2. Open `website/index.html` in any modern browser.
+3. Browse and select your desired stocks from the S&P 500.
+4. Click **Calculate**. The frontend will instantly query the Flask AI server, which dynamically runs inference for your selected assets, solves for the maximum Sharpe ratio, and returns the mathematically optimal weights and predicted returns.
 
 ---
 
@@ -218,6 +228,7 @@ Open `website/index.html` in any modern browser:
 | Package | Purpose |
 |---|---|
 | `torch >= 2.7` | TemporalCNN model & training |
+| `flask`, `flask-cors` | Backend AI API for Web Dashboard |
 | `numpy >= 2.0` | Numerical computing |
 | `pandas >= 2.2` | Data manipulation |
 | `scipy >= 1.14` | SLSQP portfolio optimization |
