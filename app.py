@@ -23,10 +23,22 @@ ENGINEERED_FEATURES = None
 COV_MATRIX = None
 ANNUAL_MEANS = None
 TICKERS_LIST = None
+HISTORICAL_PRICES = None
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+import time
+LAST_CACHE_UPDATE = 0
+CACHE_TTL = 3600 * 6  # 6 hours
+
+def refresh_cache_if_needed():
+    global LAST_CACHE_UPDATE
+    if time.time() - LAST_CACHE_UPDATE > CACHE_TTL:
+        if LAST_CACHE_UPDATE != 0:
+            print("Cache expired. Reloading from database...", flush=True)
+        initialize_backend()
+
 def initialize_backend():
-    global MODEL, ENGINEERED_FEATURES, COV_MATRIX, TICKERS_LIST, ANNUAL_MEANS
+    global MODEL, ENGINEERED_FEATURES, COV_MATRIX, TICKERS_LIST, ANNUAL_MEANS, HISTORICAL_PRICES
     
     print("=== Initializing AI Backend ===")
     
@@ -34,11 +46,15 @@ def initialize_backend():
     historical_data, engineered_features, tickers = download_and_prepare_data(CONFIG)
     TICKERS_LIST = tickers
     ENGINEERED_FEATURES = engineered_features
+    HISTORICAL_PRICES = historical_data
     
     # 2. Pre-calculate the full Covariance Matrix and Means once
     daily_returns = calculate_daily_returns(historical_data)
     COV_MATRIX = calculate_annualized_covariance(daily_returns)
     ANNUAL_MEANS = daily_returns.mean() * 252
+    
+    global LAST_CACHE_UPDATE
+    LAST_CACHE_UPDATE = time.time()
     
     # 3. Load Model
     MODEL = TemporalCNN(
@@ -81,8 +97,25 @@ def serve_frontend(path):
         return send_from_directory(app.static_folder, path)
     return send_from_directory(app.static_folder, 'index.html')
 
+@app.route('/api/prices', methods=['GET'])
+def get_prices():
+    refresh_cache_if_needed()
+    ticker = request.args.get('ticker')
+    if not ticker or ticker not in TICKERS_LIST:
+        return jsonify({"error": "Invalid or missing ticker"}), 400
+        
+    # Get last 15 days of data
+    last_15 = HISTORICAL_PRICES[ticker].dropna().tail(15)
+    
+    response = {
+        "dates": last_15.index.strftime('%Y-%m-%d').tolist(),
+        "prices": last_15.tolist()
+    }
+    return jsonify(response)
+
 @app.route('/api/optimize', methods=['POST'])
 def optimize():
+    refresh_cache_if_needed()
     data = request.json
     if not data or 'tickers' not in data:
         return jsonify({"error": "Missing 'tickers' in request"}), 400

@@ -77,7 +77,8 @@ def download_and_prepare_data(config=CONFIG, force_download=False):
     historical_data = load_portfolio_data(
         tickers=tickers,
         period=config["PERIOD"],
-        database_url=config["DATABASE_URL"]
+        database_url=config["DATABASE_URL"],
+        force_download=force_download
     )
 
     print("Generating engineered features in memory (bypassing DB column limits)...", flush=True)

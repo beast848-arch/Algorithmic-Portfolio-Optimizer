@@ -23,7 +23,7 @@ def get_sp500_tickers():
     
     return cleaned_tickers
 
-def load_portfolio_data(tickers=None, period="3y", database_url="sqlite:///local_fallback.db"):
+def load_portfolio_data(tickers=None, period="3y", database_url="sqlite:///local_fallback.db", force_download=False):
     """
     Loads historical adjusted close data. 
     If data exists in the database, it loads from there. Otherwise, it downloads fresh data.
@@ -33,7 +33,7 @@ def load_portfolio_data(tickers=None, period="3y", database_url="sqlite:///local
     
     # Check if table exists
     inspector = inspect(engine)
-    if inspector.has_table(table_name):
+    if not force_download and inspector.has_table(table_name):
         print(f"Checking database table: '{table_name}'...")
         try:
             df = pd.read_sql_table(table_name, con=engine, index_col="Date")

@@ -638,8 +638,120 @@ const sectionObs = new IntersectionObserver(
 document.querySelectorAll('section[id]').forEach(s => sectionObs.observe(s));
 
 /* ----------------------------------------------------------------
+   MARKET DATA / PRICE HISTORY (Chart.js)
+   ---------------------------------------------------------------- */
+const historyInput = document.getElementById('history-search');
+const historyDatalist = document.getElementById('history-datalist');
+const historyBtn = document.getElementById('history-btn');
+const historyLoading = document.getElementById('history-loading');
+const historyError = document.getElementById('history-error');
+const historyChartContainer = document.getElementById('history-chart-container');
+const ctx = document.getElementById('priceChart').getContext('2d');
+let priceChartInstance = null;
+
+// Populate datalist with all 174 supported tickers
+function populateHistoryDatalist() {
+  historyDatalist.innerHTML = '';
+  SP500_STOCKS.forEach(stock => {
+    const option = document.createElement('option');
+    option.value = stock.ticker;
+    option.textContent = `${stock.name} (${stock.sector})`;
+    historyDatalist.appendChild(option);
+  });
+}
+
+historyBtn.addEventListener('click', async () => {
+  const ticker = historyInput.value.trim().toUpperCase();
+  if (!ticker) return;
+  
+  // Verify it exists in our array
+  const stockObj = SP500_STOCKS.find(s => s.ticker === ticker);
+  if (!stockObj) {
+    historyError.textContent = `Ticker ${ticker} not found in our supported list of S&P 500 stocks.`;
+    historyError.style.display = 'block';
+    historyChartContainer.style.display = 'none';
+    return;
+  }
+  
+  historyError.style.display = 'none';
+  historyChartContainer.style.display = 'none';
+  historyLoading.style.display = 'block';
+  
+  try {
+    const response = await fetch(`/api/prices?ticker=${ticker}`);
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    
+    if (data.error) throw new Error(data.error);
+    
+    renderChart(ticker, data.dates, data.prices);
+  } catch (err) {
+    historyError.textContent = `Error fetching data: ${err.message}`;
+    historyError.style.display = 'block';
+  } finally {
+    historyLoading.style.display = 'none';
+  }
+});
+
+function renderChart(ticker, dates, prices) {
+  historyChartContainer.style.display = 'block';
+  
+  if (priceChartInstance) {
+    priceChartInstance.destroy();
+  }
+  
+  priceChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: `${ticker} Closing Price`,
+        data: prices,
+        borderColor: '#4F8EF7',
+        backgroundColor: 'rgba(79, 142, 247, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.1,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#4F8EF7',
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color: '#e0e0e0' } },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: function(context) {
+              return ` $${context.parsed.y.toFixed(2)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#999' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#999', callback: (val) => '$' + val }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
+}
+
+// Fix scroll position on reload
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
+/* ----------------------------------------------------------------
    INIT
    ---------------------------------------------------------------- */
 buildGrid();
+populateHistoryDatalist();
 updateUI();
 showResultsEmpty();

@@ -11,6 +11,7 @@
   <meta property="og:type" content="website" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -24,6 +25,7 @@
       <ul class="nav-links" role="list">
         <li><a href="#stock-selector" id="nav-selector">Stock Selector</a></li>
         <li><a href="#results" id="nav-results">Results</a></li>
+        <li><a href="#price-history" id="nav-history">Market Data</a></li>
         <li><a href="https://github.com/beast848-arch/Algorithmic-Portfolio-Optimizer" target="_blank" rel="noopener" class="nav-cta" id="nav-github">GitHub ↗</a></li>
       </ul>
     </div>
@@ -264,6 +266,40 @@
 
       </div><!-- /results-populated -->
 
+    </div>
+  </section>
+
+  <!-- PRICE HISTORY -->
+  <section id="price-history" aria-labelledby="history-heading">
+    <div class="container">
+      <div class="fade-up">
+        <span class="section-tag" id="history-tag">Market Data</span>
+        <h2 class="section-title" id="history-heading">Historical <span class="gradient-text">Prices</span></h2>
+        <p class="section-subtitle">
+          View the last 15 days of actual market closing prices for any S&P 500 stock.
+        </p>
+      </div>
+      
+      <div class="history-controls fade-up" style="text-align: center; margin-bottom: 2rem;">
+        <div class="search-wrap" style="max-width: 400px; margin: 0 auto;">
+          <input type="text" id="history-search" class="search-input" list="history-datalist" placeholder="Search stock by name or ticker..." autocomplete="off">
+          <datalist id="history-datalist">
+            <!-- populated by JS -->
+          </datalist>
+          <button id="history-btn" class="btn-primary" style="margin-top: 1rem; width: 100%;">View Price History</button>
+        </div>
+      </div>
+
+      <div id="history-loading" style="display:none;" class="loading-card fade-up">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Fetching historical prices...</div>
+      </div>
+
+      <div id="history-error" class="limit-warning" style="display:none; max-width: 600px; margin: 0 auto;"></div>
+
+      <div id="history-chart-container" class="breakdown-card fade-up" style="display:none; max-width: 800px; margin: 0 auto; padding: 2rem;">
+        <canvas id="priceChart"></canvas>
+      </div>
     </div>
   </section>
 
