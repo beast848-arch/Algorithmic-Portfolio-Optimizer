@@ -1,21 +1,21 @@
 # 📈 Algorithmic Portfolio Optimizer
 
-> **AI-powered portfolio optimization** combining a Temporal CNN for return prediction with Modern Portfolio Theory (MPT) to maximize risk-adjusted returns across 174 S&P 500 assets.
+> **AI-powered portfolio optimization** combining a Deep Learning Temporal CNN for return prediction with Modern Portfolio Theory (MPT) to maximize risk-adjusted returns across 174 S&P 500 assets.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.7%2B-ee4c2c?style=flat-square&logo=pytorch)](https://pytorch.org/)
-
+[![Flask](https://img.shields.io/badge/Flask-Backend-black?style=flat-square&logo=flask)](https://flask.palletsprojects.com/)
 
 ---
 
 ## 🧠 How It Works
 
-This project fuses two powerful disciplines into a single pipeline:
+This project fuses deep learning with quantitative finance into a single automated pipeline:
 
-1. **Deep Learning** — A Temporal CNN predicts 21-day forward returns for each asset using 20 engineered technical indicators per stock.
-2. **Quantitative Finance** — The predicted returns feed into a Sharpe Ratio maximizer (SLSQP) with Ledoit-Wolf covariance shrinkage to find the mathematically optimal portfolio weights.
+1. **Deep Learning** — A Temporal CNN predicts 21-day forward returns for each asset using 20 engineered technical indicators.
+2. **Quantitative Finance** — Predicted returns feed into a Sharpe Ratio maximizer (SLSQP) with Ledoit-Wolf covariance shrinkage to discover mathematically optimal portfolio weights.
 
-```
+```text
 Market Data (yfinance)
         │
         ▼
@@ -38,39 +38,41 @@ Feature Engineering (20 indicators/asset)
 
 ## ✨ Features
 
-- 🤖 **Temporal CNN** with residual blocks for time-series return prediction
-- 📊 **20 technical indicators** per asset: RSI, MACD, Bollinger Bands, EMA ratios, rolling volatility, momentum ranks, and more
-- 🛡️ **Ledoit-Wolf covariance shrinkage** for robust, out-of-sample risk estimation
-- ⚡ **Sharpe Ratio maximization** via SciPy SLSQP with per-asset position limits (max 35%)
-- 🌐 **Interactive Web Dashboard & AI Backend** — Pick stocks in the browser and fetch live predictions from the Flask AI server
-- 💾 **Smart data caching** — downloads once, reuses locally for lightning-fast inference
-- 🎯 **174-asset multi-sector universe** covering Tech, Healthcare, Financials, Energy, and macro safe havens
+- 🤖 **Temporal CNN**: Deep learning model with residual blocks designed for time-series stock return prediction.
+- 📊 **Feature Engineering**: Computes 20 technical indicators per asset (RSI, MACD, Bollinger Bands, rolling volatility, momentum ranks, etc.).
+- 🛡️ **Robust Risk Modeling**: Ledoit-Wolf covariance shrinkage for robust, out-of-sample risk estimation.
+- ⚡ **Optimization**: Sharpe Ratio maximization via SciPy SLSQP with strict per-asset position limits (max 35%).
+- 🌐 **Web Dashboard & AI Backend**: Flask-powered backend interacting with an interactive frontend to build portfolios dynamically.
+- 💾 **Smart Caching**: SQLite fallback database to cache yfinance downloads for lightning-fast inference.
+- 🐳 **Dockerized**: Easy deployment anywhere with the provided Dockerfile.
+- 🤖 **Automation**: GitHub Actions workflow included for automated daily market data updates.
 
 ---
 
 ## 🗂️ Project Structure
 
-```
+```text
 Algorithmic-Portfolio-Optimizer/
 │
 ├── app.py                        # Flask API Backend for the Web UI
 ├── main.py                       # CLI End-to-end inference pipeline
 ├── train.py                      # Model training script
 ├── model.py                      # TemporalCNN architecture
-├── dataset.py                    # CONFIG, data download & PyTorch Dataset
+├── dataset.py                    # PyTorch Dataset & Data Prep
 ├── feature_eng.py                # Technical indicator engineering
 ├── data_loader.py                # yfinance data fetching & caching
 ├── optimizer.py                  # Portfolio math & SLSQP optimizer
 │
 ├── temporal_cnn_weights.pth      # Pretrained model weights
-├── requirements.txt
+├── requirements.txt              # Python dependencies
+├── Dockerfile                    # Docker configuration for deployment
 │
-├── data/
-│   ├── sp500_historical_data.csv # Cached price data
-│   └── engineered_data.csv       # Cached feature matrix
+├── .github/workflows/
+│   └── daily_update.yml          # CI/CD: Automated daily data fetch
 │
-└── website/
-    ├── index.html                # Interactive portfolio builder UI
+├── data/                         # Directory for CSV data
+└── website/                      # Frontend UI assets
+    ├── index.html
     ├── style.css
     └── script.js
 ```
@@ -79,8 +81,6 @@ Algorithmic-Portfolio-Optimizer/
 
 ## 🚀 Quick Start
 
-Visit the website <a href="https://algorithmic-portfolio-optimizer.onrender.com">here</a>. 
-
 ### 1. Clone the Repository
 
 ```bash
@@ -88,154 +88,133 @@ git clone https://github.com/your-username/Algorithmic-Portfolio-Optimizer.git
 cd Algorithmic-Portfolio-Optimizer
 ```
 
-### 2. Create a Virtual Environment
+### 2. Environment Variables (Optional)
+
+You can set the following environment variables to configure advanced features:
+
+- `DATABASE_URL`: Connection string for the cache database (defaults to `sqlite:///local_fallback.db`).
+- `HF_MODEL_REPO`: Hugging Face repository to pull/push model weights.
+- `HF_TOKEN`: Hugging Face token for downloading private weights or uploading models.
+- `PORT`: Port for the Flask/Gunicorn server (default `7860`).
+
+### 3. Setup (Local)
+
+Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv venv
 
 # Windows
 venv\Scripts\activate
-
 # macOS / Linux
 source venv/bin/activate
-```
 
-### 3. Install Dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Run the AI Backend & Dashboard
+### 4. Setup (Docker)
+
+If you prefer using Docker:
+
+```bash
+docker build -t portfolio-optimizer .
+docker run -p 7860:7860 portfolio-optimizer
+```
+
+---
+
+## 💻 Usage
+
+### Web Dashboard (Flask Server)
+
+Run the backend server to enable the interactive web interface:
 
 ```bash
 python app.py
 ```
+*(Or use Docker as shown above).*
 
 This will:
-- Download historical price data from Yahoo Finance (and cache it)
-- Engineer 20 technical features per asset
-- Load the pretrained `temporal_cnn_weights.pth` model into memory
-- Pre-compute the historical covariance matrix
-- Start a Flask server on `http://127.0.0.1:5000`
+- Download & cache historical price data.
+- Engineer features & load the AI model.
+- Start a Flask server on `http://127.0.0.1:5000` (or the configured `PORT`).
 
-Once the server is running, open `website/index.html` in any web browser to use the interactive AI-powered dashboard!
+Open `website/index.html` in your browser to interact with the dashboard!
 
-### 5. CLI Inference (Optional)
+### CLI Inference
 
-If you prefer to run the pipeline via terminal instead of the web dashboard:
+If you prefer to run the pipeline purely via the terminal:
+
 ```bash
 python main.py
 ```
+This script will output the optimal portfolio allocation, expected returns, and risk metrics directly to the console.
 
 ---
 
 ## 🏋️ Training from Scratch
 
-If you want to retrain the model on fresh data:
+To retrain the model on fresh data, simply run:
 
 ```bash
 python train.py
 ```
 
-**Training details:**
+**Training specifics:**
+- **Epochs:** 150 (with early stopping patience of 20).
+- **Optimizer:** AdamW (lr=0.001, wd=1e-4) with `ReduceLROnPlateau`.
+- **Loss Function:** Huber Loss.
+- **Split:** 80% Train / 20% Validation (chronological split to prevent data leakage).
 
-| Hyperparameter | Value |
-|---|---|
-| Epochs | 150 (with early stopping) |
-| Batch Size | 32 |
-| Optimizer | AdamW (lr=0.001, wd=1e-4) |
-| Loss Function | Huber Loss |
-| LR Scheduler | ReduceLROnPlateau (patience=5) |
-| Early Stopping | Patience = 20 epochs |
-| Train / Val Split | 80% / 20% (chronological) |
-
-The best checkpoint (lowest validation loss) is saved automatically to `temporal_cnn_weights.pth`.
+The best checkpoint is automatically saved to `temporal_cnn_weights.pth` and can optionally be pushed to Hugging Face Hub (if `HF_TOKEN` and `HF_MODEL_REPO` are configured).
 
 ---
 
-## 🧩 Model Architecture — TemporalCNN
+## 🧩 Model Architecture (Temporal CNN)
 
-```
+```text
 Input: (batch, window=63, assets=174, features=20)
           │
           ▼  [Reshape per asset]
  (batch×assets, features=20, window=63)
           │
           ▼  Conv1d projection → BatchNorm → ReLU
- (batch×assets, hidden=64, window=63)
           │
           ▼  ResidualBlock × 2 (Conv1d + BatchNorm + Dropout)
           │
           ▼  Global Average Pooling
- (batch×assets, 64)
           │
           ▼  Reshape & Flatten
- (batch, assets×64 = 11136)
           │
           ▼  Linear(11136, 128) → ReLU → Dropout → Linear(128, 174)
           │
 Output: (batch, 174)  — predicted excess returns per asset
 ```
 
-Key design decisions:
-- **Per-asset processing** — each asset's time series is processed independently before cross-asset fusion
-- **Residual connections** — preserve gradient flow and enable deeper temporal reasoning
-- **Global Average Pooling** — collapses the time dimension, making the model input-length agnostic
-- **Cross-sectional targets** — market beta is subtracted from training targets to learn *relative* alpha, not market drift
+---
+
+## 📐 Feature Engineering
+
+For each asset, the following 20 features are engineered and Z-score normalized:
+- **Price & Returns:** Raw price, Log Return, and rolling returns (1, 5, 10, 20-day).
+- **Moving Average Ratios:** Price / MA (5, 10, 20, 50).
+- **Volatility:** Rolling standard deviations (5 and 20 days).
+- **Momentum & Trend:** RSI (14-period), MACD, MACD Signal, EMA12, and EMA26 ratios.
+- **Mean Reversion:** Bollinger Band position.
+- **Cross-Sectional Rank:** 5-day and 20-day relative return rank across all assets.
 
 ---
 
-## 📐 Feature Engineering (20 Features per Asset)
+## 📊 Portfolio Optimization Details
 
-| Category | Features |
-|---|---|
-| **Price** | Raw price |
-| **Returns** | 1-day, 5-day, 10-day, 20-day returns; log return |
-| **Moving Average Ratios** | Price / MA5, MA10, MA20, MA50 |
-| **Volatility** | Rolling std over 5 and 20 days |
-| **Momentum** | RSI (14-period) |
-| **Trend** | MACD, MACD Signal, EMA12 ratio, EMA26 ratio |
-| **Mean Reversion** | Bollinger Band position |
-| **Cross-Sectional Rank** | 5-day and 20-day return rank across all assets |
-
-All features are Z-score normalized (mean=0, std=1).
+The optimization phase relies on **Modern Portfolio Theory (MPT)**:
+- **Covariance Estimation:** Ledoit-Wolf shrinkage to mitigate sample noise.
+- **Objective:** Maximize Sharpe Ratio `(Return − Risk-Free Rate) / Volatility` (default risk-free rate is 4%).
+- **Constraints:** Total weights = 100%. Max single asset weight = 35% (ensures diversification).
+- **Solver:** SLSQP via `scipy.optimize`.
 
 ---
 
-## 📊 Portfolio Optimization
+## ⚙️ Automation (CI/CD)
 
-The optimizer uses **Modern Portfolio Theory (MPT)** with several enhancements:
-
-- **Covariance Estimation**: Ledoit-Wolf shrinkage reduces estimation noise, improving out-of-sample Sharpe Ratio stability vs. sample covariance
-- **Objective**: Maximize Sharpe Ratio = `(Return − Risk-Free Rate) / Volatility`, with a 4% risk-free rate
-- **Constraints**: Weights sum to 100%; each position capped at **35%** to ensure diversification
-- **Solver**: SLSQP (Sequential Least Squares Programming) via `scipy.optimize`
-
----
-
-## 🌐 Web Dashboard & AI Server
-
-An interactive, browser-based portfolio builder lives in the `website/` folder.
-
-1. Ensure the backend is running (`python app.py`).
-2. Open `website/index.html` in any modern browser.
-3. Browse and select your desired stocks from the S&P 500.
-4. Click **Calculate**. The frontend will instantly query the Flask AI server, which dynamically runs inference for your selected assets, solves for the maximum Sharpe ratio, and returns the mathematically optimal weights and predicted returns.
-
----
-
-## 📦 Dependencies
-
-| Package | Purpose |
-|---|---|
-| `torch >= 2.7` | TemporalCNN model & training |
-| `flask`, `flask-cors` | Backend AI API for Web Dashboard |
-| `numpy >= 2.0` | Numerical computing |
-| `pandas >= 2.2` | Data manipulation |
-| `scipy >= 1.14` | SLSQP portfolio optimization |
-| `scikit-learn >= 1.7` | Ledoit-Wolf covariance estimation |
-| `yfinance >= 0.2` | Historical market data |
-| `matplotlib >= 3.10` | Visualization utilities |
-| `tqdm >= 4.67` | Training progress bars |
-
+The repository includes a GitHub Actions workflow (`.github/workflows/daily_update.yml`) that runs at the close of US markets every weekday to automatically trigger data updates (via `scripts/update_data.py`), ensuring your cached database remains up-to-date.
