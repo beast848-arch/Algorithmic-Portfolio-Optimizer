@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 
 # Virtual environments
-venv/
+.venv/
 env/
 .env
 
@@ -11,3 +11,6 @@ env/
 .vscode/
 walkthrough.md
 local_fallback.db
+
+graphify-out/
+.agents/

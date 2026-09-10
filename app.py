@@ -14,7 +14,7 @@ from optimizer import (
 )
 from model import TemporalCNN
 
-app = Flask(__name__, static_folder='website')
+app = Flask(__name__, static_folder='website/dist')
 CORS(app)  # Allow frontend to make requests
 
 # Global variables for caching
